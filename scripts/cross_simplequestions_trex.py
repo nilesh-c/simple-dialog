@@ -12,19 +12,21 @@ def processFile(infile: str, outfile: str, simple_questions: Dict[str, list]):
     with codecs.open(infile) as fp:
         dataset = json.load(fp)
 
-    triple_tuple = lambda t: (t['subject']['uri'], t['predicate']['uri'], t['object']['uri'])
+    subject_predicate = lambda t: (t['subject']['uri'], t['predicate']['uri'])
 
     # print("Processing", infile)
     newdataset = []
     for i, doc in enumerate(dataset):
         copy_to_new = False
         for triple in doc['triples']:
-            t = triple_tuple(triple)
-            if t in simple_questions:
+            sp = subject_predicate(triple)
+            if sp in simple_questions:
                 # If triple t is found in simple_question, copy this doc and question to new dataset
                 copy_to_new = True
+                t = simple_questions[sp][0][0]
+                question = [x[1] for x in simple_questions[sp]]
                 doc["simple_questions"] = doc.get("simple_questions", []) + [{
-                    "question": simple_questions[t],
+                    "question": question,
                     "triple": {"subject": t[0], "predicate": t[1], "object": t[2]},
                     "sentence_id": triple['sentence_id']
                 }]
@@ -50,15 +52,16 @@ def read_simpleq_wd(dir_prefix):
         for sample in f:
             sample = sample.split("\t")
             trip = tuple(touri(i) for i in sample[:3])
+            sp = trip[:2]
             # Add new question for this triple if it doesn't already exist in dict
-            triple_to_simpleq[trip] = triple_to_simpleq.get(trip, []) + [sample[3]]
+            triple_to_simpleq[sp] = triple_to_simpleq.get(sp, []) + [(trip, sample[3])]
 
     return triple_to_simpleq
 
 
 if __name__ == '__main__':
     in_dir_prefix = "/data/nilesh/verbalization/trex"
-    out_dir_prefix = "/data/nilesh/verbalization/trexmerged"
+    out_dir_prefix = "/data/nilesh/verbalization/trexmerged_sp"
     infiles = glob.glob(os.path.join(in_dir_prefix, "*.json"))
     outfiles = [i.replace(in_dir_prefix, out_dir_prefix) for i in infiles]
 
