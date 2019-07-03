@@ -10,7 +10,12 @@ from typing import *
 
 @ray.remote
 def processFile(infile: str):
-    # simple_questions = ray.get(simple_questions)
+    def getEntities(e, start):
+        ent_start, ent_end = e['boundaries']
+        ent_start = ent_start - start
+        ent_end = ent_end - start
+        e['boundaries'] = [ent_start, ent_end]
+        return e
 
     with codecs.open(infile) as fp:
         dataset = json.load(fp)
@@ -24,12 +29,16 @@ def processFile(infile: str):
         for sq in doc['simple_questions']:
             sentence = sq['sentence_id']
             number_of_triples_in_sentence = len([1 for triple in doc['triples'] if triple['sentence_id'] == sentence])
-            start, end = doc['sentences_boundaries'][sentence]
             if number_of_triples_in_sentence == 1:
+                start, end = doc['sentences_boundaries'][sentence]
+                entities = [e for e in doc['entities'] if e['boundaries'][0] >= start and e['boundaries'][1] <= end]
+                entities = [getEntities(e, start) for e in  entities]
+
                 newdataset.append({
                     'question': sq['question'],
                     'triple': sq['triple'],
-                    'sentence': doc['text'][start:end]
+                    'sentence': doc['text'][start:end],
+                    'entities': entities
                 })
 
 
